@@ -108,5 +108,10 @@ class AuthService {
         }
         return employee;
     }
+    async getEmployeeById(employeeId) {
+        return await prisma_1.prisma.employee.findUnique({
+            where: { id: employeeId }
+        });
+    }
 }
 exports.AuthService = AuthService;

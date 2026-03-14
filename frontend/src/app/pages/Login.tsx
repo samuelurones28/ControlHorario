@@ -1,8 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { Clock, Key, Mail, Lock } from 'lucide-react';
+import { useWebAuthn } from '../hooks/useWebAuthn';
+import { Clock, Key, Mail, Lock, User, Fingerprint, Loader } from 'lucide-react';
 import clsx from 'clsx';
+
+interface SavedEmployeeCredentials {
+  companyCode: string;
+  identifier: string;
+  name?: string;
+}
 
 export const Login = () => {
   const [isEmployee, setIsEmployee] = useState(true);
@@ -12,8 +19,26 @@ export const Login = () => {
   const [pin, setPin] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [savedCredentials, setSavedCredentials] = useState<SavedEmployeeCredentials | null>(null);
+  const [showQuickLogin, setShowQuickLogin] = useState(false);
+  const [useBiometric, setUseBiometric] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
+  const { isWebAuthnSupported, authenticateWithBiometric } = useWebAuthn();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Cargar credenciales guardadas al montar
+    const saved = localStorage.getItem('employee_quick_login');
+    if (saved) {
+      try {
+        setSavedCredentials(JSON.parse(saved));
+        setShowQuickLogin(true);
+      } catch (e) {
+        // Ignorar si no puede parsear
+      }
+    }
+  }, []);
 
   const handleKeypadPress = (num: string) => {
     if (pin.length < 6) {
@@ -27,10 +52,64 @@ export const Login = () => {
     setError('');
   };
 
+  const handleQuickLogin = () => {
+    if (savedCredentials) {
+      setCompanyCode(savedCredentials.companyCode);
+      setIdentifier(savedCredentials.identifier);
+      setPin(''); // Reset PIN
+      setUseBiometric(false);
+      setError('');
+      // Focus en el PIN
+      setTimeout(() => {
+        const pinInput = document.querySelector('input[placeholder="••••••"]') as HTMLInputElement;
+        pinInput?.focus();
+      }, 100);
+    }
+  };
+
+  const handleQuickLoginBiometric = async () => {
+    if (!savedCredentials) return;
+
+    setError('');
+    setIsLoading(true);
+
+    try {
+      const result = await authenticateWithBiometric(
+        savedCredentials.companyCode,
+        savedCredentials.identifier
+      );
+
+      // Set the token and navigate
+      const { login: authLogin } = useAuth.getState();
+      authLogin(
+        {
+          companyCode: savedCredentials.companyCode,
+          identifier: savedCredentials.identifier,
+          pin: ''
+        },
+        false
+      );
+
+      // Manually set token and navigate
+      localStorage.setItem('accessToken', result.accessToken);
+      navigate('/');
+    } catch (err) {
+      const e = err as { response?: { data?: { message?: string } } };
+      setError(e.response?.data?.message || 'Autenticación biométrica fallida');
+      setIsLoading(false);
+    }
+  };
+
+  const handleClearSavedCredentials = () => {
+    localStorage.removeItem('employee_quick_login');
+    setSavedCredentials(null);
+    setShowQuickLogin(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
     if (isEmployee && pin.length !== 6) {
       setError('El PIN debe tener 6 dígitos');
       return;
@@ -39,6 +118,13 @@ export const Login = () => {
     try {
       if (isEmployee) {
         await login({ companyCode, identifier, pin }, false);
+        // Guardar credenciales para próximo login (sin el PIN)
+        const toSave: SavedEmployeeCredentials = {
+          companyCode,
+          identifier,
+          name: identifier // Se puede actualizar con el nombre real del empleado
+        };
+        localStorage.setItem('employee_quick_login', JSON.stringify(toSave));
       } else {
         await login({ email, password }, true);
       }
@@ -82,6 +168,48 @@ export const Login = () => {
           {error && (
             <div className="mb-6 p-4 bg-danger-50 text-danger-700 rounded-xl text-sm text-center font-medium border border-danger-100">
               {error}
+            </div>
+          )}
+
+          {/* Quick login option for employees */}
+          {isEmployee && showQuickLogin && savedCredentials && (
+            <div className="mb-6 space-y-3">
+              {/* Biometric option */}
+              {isWebAuthnSupported() && (
+                <button
+                  type="button"
+                  onClick={handleQuickLoginBiometric}
+                  disabled={isLoading}
+                  className="w-full flex items-center justify-center gap-3 py-3.5 px-4 rounded-xl text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm border border-primary-700"
+                >
+                  {isLoading ? (
+                    <Loader className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Fingerprint className="w-5 h-5" />
+                  )}
+                  {isLoading ? 'Verificando...' : 'Desbloquear con biometría'}
+                </button>
+              )}
+
+              {/* PIN option */}
+              <button
+                type="button"
+                onClick={handleQuickLogin}
+                disabled={isLoading}
+                className="w-full flex items-center justify-center gap-3 py-3.5 px-4 rounded-xl text-sm font-semibold text-white bg-success-600 hover:bg-success-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm border border-success-700"
+              >
+                <User className="w-5 h-5" />
+                Continuar como {savedCredentials.identifier} (PIN)
+              </button>
+
+              <button
+                type="button"
+                onClick={handleClearSavedCredentials}
+                disabled={isLoading}
+                className="w-full text-xs text-neutral-500 hover:text-neutral-700 disabled:opacity-50 transition-colors"
+              >
+                ¿Eres otro empleado?
+              </button>
             </div>
           )}
 

@@ -36,7 +36,7 @@ async function auditLogger(request, reply) {
                 action,
                 entity,
                 entityId: request.params?.id || 'unknown',
-                details: JSON.stringify(details),
+                details: details,
                 ipAddress: request.ip,
             }
         }).catch(err => {

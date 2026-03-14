@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildServer = void 0;
 const fastify_1 = __importDefault(require("fastify"));
 const cors_1 = __importDefault(require("@fastify/cors"));
+const helmet_1 = __importDefault(require("helmet"));
 const rate_limit_1 = __importDefault(require("@fastify/rate-limit"));
 const jwt_1 = __importDefault(require("@fastify/jwt"));
 const cookie_1 = __importDefault(require("@fastify/cookie"));
@@ -16,7 +17,7 @@ const buildServer = () => {
     const app = (0, fastify_1.default)({ logger: env_1.config.NODE_ENV === 'development' });
     // Middleware
     app.register(cors_1.default, {
-        origin: env_1.config.CORS_ORIGIN,
+        origin: env_1.config.NODE_ENV === 'development' ? true : env_1.config.CORS_ORIGIN,
         credentials: true,
     });
     app.register(rate_limit_1.default, {
@@ -31,7 +32,32 @@ const buildServer = () => {
         },
     });
     app.register(cookie_1.default);
-    // app.register(helmet); // Disable helmet for now or configure carefully to avoid breaking things
+    app.register(helmet_1.default, {
+        crossOriginResourcePolicy: false,
+        // Content Security Policy
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'"],
+                styleSrc: ["'self'", "'unsafe-inline'"],
+                imgSrc: ["'self'", "data:", "https:"],
+                fontSrc: ["'self'"],
+                connectSrc: ["'self'"],
+                frameSrc: ["'none'"],
+                objectSrc: ["'none'"],
+                baseUri: ["'self'"],
+                formAction: ["'self'"],
+            },
+        },
+        // Frame busting
+        frameguard: { action: 'deny' },
+        // Disable MIME sniffing
+        noSniff: true,
+        // XSS protection
+        xssFilter: true,
+        // Referrer policy
+        referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    });
     // Error Handler
     app.setErrorHandler((error, request, reply) => {
         if (error instanceof zod_1.ZodError) {
@@ -77,6 +103,8 @@ const buildServer = () => {
     app.register(require('./modules/protocol/protocol.routes').protocolRoutes, { prefix: '/api/v1/protocol' });
     app.register(require('./modules/absence/absence.routes').absenceRoutes, { prefix: '/api/v1/absences' });
     app.register(require('./modules/company-holiday/company-holiday.routes').companyHolidayRoutes, { prefix: '/api/v1/holidays' });
+    app.register(require('./modules/audit/audit.routes').auditRoutes, { prefix: '/api/v1/audit-logs' });
+    app.register(require('./modules/webauthn/webauthn.routes').webauthnRoutes, { prefix: '/api/v1' });
     // --- Platform Admin Routes ---
     app.register(require('./modules/platform/auth/platformAuth.routes').platformAuthRoutes, { prefix: '/api/v1/platform/auth' });
     app.register(require('./modules/platform/companies/platformCompanies.routes').platformCompaniesRoutes, { prefix: '/api/v1/platform/companies' });

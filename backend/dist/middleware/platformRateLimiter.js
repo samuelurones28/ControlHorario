@@ -7,6 +7,10 @@ exports.platformStandardRateLimit = exports.platformLoginRateLimit = void 0;
 exports.setupPlatformRateLimits = setupPlatformRateLimits;
 const rate_limit_1 = __importDefault(require("@fastify/rate-limit"));
 async function setupPlatformRateLimits(app) {
+    // Skip rate limiting in development
+    if (process.env.NODE_ENV === 'development') {
+        return;
+    }
     await app.register(rate_limit_1.default, {
         global: false, // We'll apply it specifically to routes
         max: 100, // default limit
@@ -14,7 +18,7 @@ async function setupPlatformRateLimits(app) {
     });
 }
 // These are options to pass to specific routes
-exports.platformLoginRateLimit = {
+exports.platformLoginRateLimit = process.env.NODE_ENV === 'development' ? {} : {
     config: {
         rateLimit: {
             max: 3,

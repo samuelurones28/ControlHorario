@@ -4,6 +4,7 @@ exports.privacyRoutes = void 0;
 const authorize_1 = require("../../middleware/authorize");
 const privacy_controller_1 = require("./privacy.controller");
 const privacyRoutes = async (app) => {
+    app.get('/policy', privacy_controller_1.getPrivacyPolicy);
     app.get('/me', {
         preHandler: [(0, authorize_1.authorize)(['EMPLOYEE', 'ADMIN'])]
     }, privacy_controller_1.checkPrivacyConsent);

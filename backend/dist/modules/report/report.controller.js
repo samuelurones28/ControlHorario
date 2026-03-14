@@ -10,7 +10,7 @@ const dailyQuerySchema = zod_1.z.object({
 const exportQuerySchema = zod_1.z.object({
     from: zod_1.z.string().datetime().or(zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/)),
     to: zod_1.z.string().datetime().or(zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/)),
-    format: zod_1.z.enum(['csv']).default('csv')
+    format: zod_1.z.enum(['csv', 'pdf']).default('csv')
 });
 class ReportController {
     async getDailyReport(request, reply) {
@@ -24,14 +24,22 @@ class ReportController {
             return reply.status(400).send({ message: error.message });
         }
     }
-    async exportCsv(request, reply) {
+    async exportReport(request, reply) {
         const query = exportQuerySchema.parse(request.query);
         const companyId = request.user.companyId;
         try {
-            const csv = await reportService.exportCsv(companyId, query.from, query.to);
-            reply.header('Content-Type', 'text/csv');
-            reply.header('Content-Disposition', `attachment; filename="report_${query.from}_${query.to}.csv"`);
-            return reply.send(csv);
+            if (query.format === 'pdf') {
+                const pdf = await reportService.exportPdf(companyId, query.from, query.to);
+                reply.header('Content-Type', 'application/pdf');
+                reply.header('Content-Disposition', `attachment; filename="report_${query.from}_${query.to}.pdf"`);
+                return reply.send(pdf);
+            }
+            else {
+                const csv = await reportService.exportCsv(companyId, query.from, query.to);
+                reply.header('Content-Type', 'text/csv');
+                reply.header('Content-Disposition', `attachment; filename="report_${query.from}_${query.to}.csv"`);
+                return reply.send(csv);
+            }
         }
         catch (error) {
             return reply.status(400).send({ message: error.message });

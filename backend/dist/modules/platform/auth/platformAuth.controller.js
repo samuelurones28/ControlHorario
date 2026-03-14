@@ -22,29 +22,8 @@ class PlatformAuthController {
         if (!isValid) {
             return reply.code(401).send({ error: 'Credenciales inválidas' });
         }
-        // Check if 2FA is set up
-        if (!admin.totpSecret) {
-            if (admin.role === 'SUPER_ADMIN') {
-                const setupInfo = await totp_service_1.TotpService.generateSecret(admin.email);
-                // Temporarily store the secret in the admin record (NOT active yet)
-                // We use a prefix or temporary storage. Here we'll just return it so frontend can display
-                // Security-wise, it's safe to return the secret only during setup.
-                return reply.code(200).send({
-                    requiresTOTP: true,
-                    needsSetup: true,
-                    setupInfo: {
-                        secret: setupInfo.secret,
-                        qrCodeUrl: setupInfo.qrCodeUrl
-                    }
-                });
-            }
-            else {
-                // Non-super admins might skip 2FA for now
-                return PlatformAuthController.generateAndSendTokens(request, reply, admin);
-            }
-        }
-        // 2FA is set up, require code
-        return reply.code(200).send({ requiresTOTP: true, needsSetup: false });
+        // 2FA deshabilitado durante desarrollo
+        return PlatformAuthController.generateAndSendTokens(request, reply, admin);
     }
     static async verifyTotp(request, reply) {
         const { email, totpCode } = request.body;
@@ -55,12 +34,6 @@ class PlatformAuthController {
         // Verify TOTP
         const isValidTotp = totp_service_1.TotpService.verify(admin.totpSecret, totpCode);
         if (!isValidTotp) {
-            // Check if it's a backup code
-            const backupCode = await prisma_1.prisma.platformBackupCode.findFirst({
-                where: { platformAdminId: admin.id, usedAt: null }
-            });
-            // Highly simplified backup code check - in real prod we would iterate and compare hash
-            // For this implementation, we will assume strict TOTP for now
             return reply.code(401).send({ error: 'Código TOTP inválido' });
         }
         // Success
@@ -96,6 +69,43 @@ class PlatformAuthController {
             })
         ]);
         return PlatformAuthController.generateAndSendTokens(request, reply, admin, plainCodes);
+    }
+    static async verifyRecoveryCode(request, reply) {
+        const { email, recoveryCode } = request.body;
+        const admin = await prisma_1.prisma.platformAdmin.findUnique({ where: { email } });
+        if (!admin || !admin.active || !admin.totpSecret) {
+            return reply.code(401).send({ error: 'Credenciales inválidas o 2FA no configurado' });
+        }
+        // Normalize recovery code: uppercase, remove dashes and spaces
+        const normalizedCode = recoveryCode.toUpperCase().replace(/[\s-]/g, '');
+        // Get all unused recovery codes for this admin
+        const backupCodes = await prisma_1.prisma.platformBackupCode.findMany({
+            where: { platformAdminId: admin.id, usedAt: null }
+        });
+        // Check if the provided code matches any unused backup code
+        let matchedCode = null;
+        for (const code of backupCodes) {
+            const isValid = await bcryptjs_1.default.compare(normalizedCode, code.codeHash);
+            if (isValid) {
+                matchedCode = code;
+                break;
+            }
+        }
+        if (!matchedCode) {
+            return reply.code(401).send({ error: 'Código de recuperación inválido' });
+        }
+        // Mark the code as used and update last login
+        await prisma_1.prisma.$transaction([
+            prisma_1.prisma.platformBackupCode.update({
+                where: { id: matchedCode.id },
+                data: { usedAt: new Date() }
+            }),
+            prisma_1.prisma.platformAdmin.update({
+                where: { id: admin.id },
+                data: { lastLoginAt: new Date() }
+            })
+        ]);
+        return PlatformAuthController.generateAndSendTokens(request, reply, admin);
     }
     static async refresh(request, reply) {
         const refreshToken = request.cookies.rt_platform;

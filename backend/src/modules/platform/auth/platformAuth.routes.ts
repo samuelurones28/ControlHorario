@@ -15,6 +15,10 @@ export const platformAuthRoutes: FastifyPluginAsync = async (fastify: FastifyIns
     ...platformStandardRateLimit,
   }, PlatformAuthController.setupTotp as any)
 
+  fastify.post('/login/verify-recovery', {
+    ...platformLoginRateLimit,
+  }, PlatformAuthController.verifyRecoveryCode as any)
+
   fastify.post('/refresh', {
     ...platformStandardRateLimit,
   }, PlatformAuthController.refresh)

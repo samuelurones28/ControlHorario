@@ -10,6 +10,7 @@ export const Verify2FA = () => {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [mode, setMode] = useState<'totp' | 'recovery'>('totp');
 
   const { requiresTOTP, pendingEmail, setAuth, reset } = usePlatformAuth();
   const navigate = useNavigate();
@@ -22,23 +23,37 @@ export const Verify2FA = () => {
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (pin.length < 6 || !pendingEmail) return;
+    if (!pendingEmail) return;
+
+    if (mode === 'totp' && pin.length !== 6) return;
+    if (mode === 'recovery' && pin.length < 8) return;
 
     setIsLoading(true);
     setError('');
 
     try {
-      // Backend endpoint: POST /platform/auth/login/verify-totp
-      // Body: { email, totpCode }
-      const { data } = await platformApi.post('/platform/auth/login/verify-totp', {
-        email: pendingEmail,
-        totpCode: pin,
-      });
+      if (mode === 'totp') {
+        const { data } = await platformApi.post('/platform/auth/login/verify-totp', {
+          email: pendingEmail,
+          totpCode: pin,
+        });
 
-      setAuth({
-        admin: data.admin,
-        token: data.accessToken,
-      });
+        setAuth({
+          admin: data.admin,
+          token: data.accessToken,
+        });
+      } else {
+        // recovery mode
+        const { data } = await platformApi.post('/platform/auth/login/verify-recovery', {
+          email: pendingEmail,
+          recoveryCode: pin,
+        });
+
+        setAuth({
+          admin: data.admin,
+          token: data.accessToken,
+        });
+      }
 
       navigate('/');
     } catch (err) {
@@ -47,6 +62,12 @@ export const Verify2FA = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const toggleMode = () => {
+    setPin('');
+    setError('');
+    setMode(mode === 'totp' ? 'recovery' : 'totp');
   };
 
   return (
@@ -59,7 +80,9 @@ export const Verify2FA = () => {
           Autenticación Requerida
         </h2>
         <p className="mt-2 text-center text-sm text-gray-600">
-          Introduzca el código de verificación de su aplicación 2FA.
+          {mode === 'totp'
+            ? 'Introduzca el código de verificación de su aplicación 2FA.'
+            : 'Introduzca un código de recuperación de 8 dígitos.'}
         </p>
       </div>
 
@@ -76,7 +99,9 @@ export const Verify2FA = () => {
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 text-center mb-2">Código de 6 dígitos</label>
+              <label className="block text-sm font-medium text-gray-700 text-center mb-2">
+                {mode === 'totp' ? 'Código de 6 dígitos' : 'Código de recuperación'}
+              </label>
               <div className="mt-1 relative rounded-md shadow-sm">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <KeyRound className="h-5 w-5 text-gray-400" />
@@ -84,36 +109,56 @@ export const Verify2FA = () => {
                 <input
                   type="text"
                   required
-                  maxLength={6}
-                  inputMode="numeric"
+                  maxLength={mode === 'totp' ? 6 : 9}
+                  inputMode={mode === 'totp' ? 'numeric' : 'text'}
                   value={pin}
-                  onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+                  onChange={(e) => {
+                    if (mode === 'totp') {
+                      setPin(e.target.value.replace(/\D/g, ''));
+                    } else {
+                      setPin(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''));
+                    }
+                  }}
                   className="focus:ring-orange-500 focus:border-orange-500 block w-full pl-10 sm:text-2xl border-gray-300 rounded-md py-4 border tracking-[0.5em] text-center font-mono"
-                  placeholder="000000"
+                  placeholder={mode === 'totp' ? '000000' : 'XXXX-XXXX'}
                 />
               </div>
+              {mode === 'recovery' && (
+                <p className="mt-2 text-xs text-gray-500 text-center">
+                  Usa uno de los códigos guardados durante la configuración de 2FA
+                </p>
+              )}
             </div>
 
             <button
               type="submit"
-              disabled={isLoading || pin.length !== 6}
+              disabled={isLoading || (mode === 'totp' ? pin.length !== 6 : pin.length < 8)}
               className={twMerge(
                 clsx(
                   "w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 transition-colors",
-                  (isLoading || pin.length !== 6) && "opacity-75 cursor-not-allowed"
+                  (isLoading || (mode === 'totp' ? pin.length !== 6 : pin.length < 8)) && "opacity-75 cursor-not-allowed"
                 )
               )}
             >
               {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Verificar y Entrar'}
             </button>
 
-            <button
-              type="button"
-              onClick={() => { reset(); navigate('/login'); }}
-              className="w-full text-sm text-gray-500 hover:text-gray-700 text-center mt-2"
-            >
-              ← Volver al login
-            </button>
+            <div className="flex gap-2 mt-4">
+              <button
+                type="button"
+                onClick={() => { reset(); navigate('/login'); }}
+                className="flex-1 text-sm text-gray-500 hover:text-gray-700 text-center"
+              >
+                ← Volver al login
+              </button>
+              <button
+                type="button"
+                onClick={toggleMode}
+                className="flex-1 text-sm text-orange-600 hover:text-orange-700 text-center border-l pl-2"
+              >
+                {mode === 'totp' ? '¿Sin app? Código respaldo' : '← Volver a TOTP'}
+              </button>
+            </div>
           </form>
         </div>
       </div>

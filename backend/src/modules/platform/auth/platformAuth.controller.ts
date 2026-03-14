@@ -2,7 +2,7 @@ import { FastifyReply, FastifyRequest } from 'fastify'
 import { prisma } from '../../../utils/prisma'
 import bcrypt from 'bcryptjs'
 import { v4 as uuidv4 } from 'uuid'
-import { LoginInput, SetupTotpInput, VerifyTotpInput } from './platformAuth.schemas'
+import { LoginInput, SetupTotpInput, VerifyTotpInput, VerifyRecoveryInput } from './platformAuth.schemas'
 import { TotpService } from './totp.service'
 
 /**
@@ -43,13 +43,6 @@ export class PlatformAuthController {
     const isValidTotp = TotpService.verify(admin.totpSecret, totpCode)
 
     if (!isValidTotp) {
-      // Check if it's a backup code
-      const backupCode = await prisma.platformBackupCode.findFirst({
-        where: { platformAdminId: admin.id, usedAt: null }
-      })
-
-      // Highly simplified backup code check - in real prod we would iterate and compare hash
-      // For this implementation, we will assume strict TOTP for now
       return reply.code(401).send({ error: 'Código TOTP inválido' })
     }
 
@@ -97,6 +90,52 @@ export class PlatformAuthController {
     ])
 
     return PlatformAuthController.generateAndSendTokens(request, reply, admin, plainCodes)
+  }
+
+  static async verifyRecoveryCode(request: FastifyRequest<{ Body: VerifyRecoveryInput }>, reply: FastifyReply) {
+    const { email, recoveryCode } = request.body
+
+    const admin = await prisma.platformAdmin.findUnique({ where: { email } })
+
+    if (!admin || !admin.active || !admin.totpSecret) {
+      return reply.code(401).send({ error: 'Credenciales inválidas o 2FA no configurado' })
+    }
+
+    // Normalize recovery code: uppercase, remove dashes and spaces
+    const normalizedCode = recoveryCode.toUpperCase().replace(/[\s-]/g, '')
+
+    // Get all unused recovery codes for this admin
+    const backupCodes = await prisma.platformBackupCode.findMany({
+      where: { platformAdminId: admin.id, usedAt: null }
+    })
+
+    // Check if the provided code matches any unused backup code
+    let matchedCode = null
+    for (const code of backupCodes) {
+      const isValid = await bcrypt.compare(normalizedCode, code.codeHash)
+      if (isValid) {
+        matchedCode = code
+        break
+      }
+    }
+
+    if (!matchedCode) {
+      return reply.code(401).send({ error: 'Código de recuperación inválido' })
+    }
+
+    // Mark the code as used and update last login
+    await prisma.$transaction([
+      prisma.platformBackupCode.update({
+        where: { id: matchedCode.id },
+        data: { usedAt: new Date() }
+      }),
+      prisma.platformAdmin.update({
+        where: { id: admin.id },
+        data: { lastLoginAt: new Date() }
+      })
+    ])
+
+    return PlatformAuthController.generateAndSendTokens(request, reply, admin)
   }
 
   static async refresh(request: FastifyRequest, reply: FastifyReply) {

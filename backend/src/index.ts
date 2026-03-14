@@ -111,6 +111,7 @@ export const buildServer = () => {
   app.register(require('./modules/absence/absence.routes').absenceRoutes, { prefix: '/api/v1/absences' });
   app.register(require('./modules/company-holiday/company-holiday.routes').companyHolidayRoutes, { prefix: '/api/v1/holidays' });
   app.register(require('./modules/audit/audit.routes').auditRoutes, { prefix: '/api/v1/audit-logs' });
+  app.register(require('./modules/webauthn/webauthn.routes').webauthnRoutes, { prefix: '/api/v1' });
 
   // --- Platform Admin Routes ---
   app.register(require('./modules/platform/auth/platformAuth.routes').platformAuthRoutes, { prefix: '/api/v1/platform/auth' });

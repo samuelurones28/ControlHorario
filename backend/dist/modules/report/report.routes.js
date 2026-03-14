@@ -11,5 +11,5 @@ async function reportRoutes(app) {
     app.addHook('preValidation', (0, authorize_1.authorize)(['ADMIN']));
     app.addHook('onResponse', auditLogger_1.auditLogger);
     app.get('/daily', reportController.getDailyReport.bind(reportController));
-    app.get('/export', reportController.exportCsv.bind(reportController));
+    app.get('/export', reportController.exportReport.bind(reportController));
 }

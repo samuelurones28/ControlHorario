@@ -27,7 +27,7 @@ class AuthController {
         };
         const accessToken = await reply.jwtSign(tokenPayload, { expiresIn: '15m' });
         const refreshToken = request.server.jwt.sign(tokenPayload, {
-            expiresIn: '7d',
+            expiresIn: '24h',
             key: env_1.config.JWT_REFRESH_SECRET
         });
         reply.setCookie('refreshToken', refreshToken, {
@@ -60,7 +60,7 @@ class AuthController {
         };
         const accessToken = await reply.jwtSign(tokenPayload, { expiresIn: '15m' });
         const refreshToken = request.server.jwt.sign(tokenPayload, {
-            expiresIn: '7d',
+            expiresIn: '24h',
             key: env_1.config.JWT_REFRESH_SECRET
         });
         reply.setCookie('refreshToken', refreshToken, {
@@ -105,6 +105,23 @@ class AuthController {
     async logout(request, reply) {
         reply.clearCookie('refreshToken', { path: '/' });
         return reply.send({ message: 'Logged out successfully' });
+    }
+    async getMe(request, reply) {
+        const employeeId = request.tenant?.employeeId;
+        if (!employeeId) {
+            return reply.status(401).send({ message: 'Unauthorized' });
+        }
+        const employee = await authService.getEmployeeById(employeeId);
+        if (!employee) {
+            return reply.status(404).send({ message: 'Employee not found' });
+        }
+        return reply.send({
+            id: employee.id,
+            name: employee.name,
+            role: employee.role,
+            companyId: employee.companyId,
+            identifier: employee.identifier
+        });
     }
 }
 exports.AuthController = AuthController;

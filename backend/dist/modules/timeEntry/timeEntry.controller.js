@@ -7,7 +7,10 @@ const timeEntryService = new timeEntry_service_1.TimeEntryService();
 class TimeEntryController {
     async clock(request, reply) {
         const data = timeEntry_schemas_1.clockSchema.parse(request.body);
-        const employeeId = request.user.id;
+        const employeeId = request.tenant?.employeeId;
+        if (!employeeId) {
+            return reply.status(401).send({ message: 'Unauthorized: No employee ID' });
+        }
         const ipAddress = request.ip;
         const deviceInfo = request.headers['user-agent'];
         try {
@@ -20,13 +23,19 @@ class TimeEntryController {
     }
     async getMyHistory(request, reply) {
         const query = timeEntry_schemas_1.historyQuerySchema.parse(request.query || {});
-        const employeeId = request.user.id;
+        const employeeId = request.tenant?.employeeId;
+        if (!employeeId) {
+            return reply.status(401).send({ message: 'Unauthorized: No employee ID' });
+        }
         const history = await timeEntryService.getMyHistory(employeeId, query.from, query.to);
         return reply.send(history);
     }
     async getAllHistory(request, reply) {
         const query = request.query;
-        const companyId = request.user.companyId;
+        const companyId = request.tenant?.companyId;
+        if (!companyId) {
+            return reply.status(401).send({ message: 'Unauthorized: No company ID' });
+        }
         const history = await timeEntryService.getAllHistory(companyId, query.employeeId, query.from, query.to);
         return reply.send(history);
     }

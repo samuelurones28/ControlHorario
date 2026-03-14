@@ -13,6 +13,9 @@ const platformAuthRoutes = async (fastify) => {
     fastify.post('/login/setup-totp', {
         ...platformRateLimiter_1.platformStandardRateLimit,
     }, platformAuth_controller_1.PlatformAuthController.setupTotp);
+    fastify.post('/login/verify-recovery', {
+        ...platformRateLimiter_1.platformLoginRateLimit,
+    }, platformAuth_controller_1.PlatformAuthController.verifyRecoveryCode);
     fastify.post('/refresh', {
         ...platformRateLimiter_1.platformStandardRateLimit,
     }, platformAuth_controller_1.PlatformAuthController.refresh);

@@ -1,0 +1,16 @@
+{
+  "name": "Control Horario",
+  "short_name": "Horario",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "description": "Aplicación de fichaje laboral",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

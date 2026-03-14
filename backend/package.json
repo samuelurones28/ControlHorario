@@ -1,0 +1,50 @@
+{
+  "name": "control-horario-backend",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "seed:platform": "ts-node prisma/seed-platform.ts"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^10.0.1",
+    "@fastify/cors": "^10.0.1",
+    "@fastify/jwt": "^9.0.1",
+    "@fastify/rate-limit": "^10.1.1",
+    "@prisma/client": "^5.10.2",
+    "bcrypt": "^5.1.1",
+    "bcryptjs": "^3.0.3",
+    "crypto-random-string": "^5.0.0",
+    "date-fns": "^3.3.1",
+    "dotenv": "^16.4.5",
+    "fastify": "^5.0.0",
+    "fastify-type-provider-zod": "^5.1.0",
+    "helmet": "^7.1.0",
+    "nanoid": "^5.1.6",
+    "node-cron": "^4.2.1",
+    "pdfmake": "^0.3.4",
+    "qrcode": "^1.5.4",
+    "speakeasy": "^2.0.0",
+    "uuid": "^13.0.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/crypto-random-string": "^1.0.0",
+    "@types/node": "^20.11.20",
+    "@types/node-cron": "^3.0.11",
+    "@types/pdfmake": "^0.3.1",
+    "@types/qrcode": "^1.5.6",
+    "@types/speakeasy": "^2.0.10",
+    "prisma": "^5.10.2",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.7.1",
+    "typescript": "^5.9.3"
+  }
+}

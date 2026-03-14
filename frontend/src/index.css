@@ -1,0 +1,78 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary-50: #fff5ed;
+  --color-primary-100: #ffe8d5;
+  --color-primary-200: #ffd1af;
+  --color-primary-300: #ffb17e;
+  --color-primary-400: #ff8542;
+  --color-primary-500: #f95f15; /* Professional Terra Orange */
+  --color-primary-600: #ea4800;
+  --color-primary-700: #c23500;
+  --color-primary-800: #9a2b02;
+  --color-primary-900: #7c2504;
+
+  --color-success-500: #10b981;
+  --color-danger-500: #ef4444;
+  --color-warning-500: #f59e0b;
+
+  --color-neutral-900: #0f172a; /* Slate 900 */
+  --color-neutral-800: #1e293b; /* Slate 800 */
+  --color-neutral-700: #334155; /* Slate 700 */
+  --color-neutral-500: #64748b; /* Slate 500 */
+  --color-neutral-400: #94a3b8; /* Slate 400 */
+  --color-neutral-300: #cbd5e1; /* Slate 300 */
+  --color-neutral-200: #e2e8f0; /* Slate 200 */
+  --color-neutral-100: #f1f5f9; /* Slate 100 */
+  --color-neutral-50:  #f8fafc; /* Slate 50 */
+
+  /* Rounded radiuses for softer professional look */
+  --radius-sm: 2px;
+  --radius: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 24px;
+
+  /* Extensión de animaciones */
+  --animate-fade-in-up: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-pop: pop 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-slide-in: slide-in 0.3s ease-out forwards;
+
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes pop {
+    0% { transform: scale(0.95); opacity: 0; }
+    50% { transform: scale(1.02); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  @keyframes slide-in {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+  }
+}
+
+body {
+  @apply bg-neutral-50 text-neutral-900 m-0 min-h-screen selection:bg-primary-500 selection:text-white;
+  font-family: "Inter", "JetBrains Mono", system-ui, sans-serif;
+}
+
+/* Global inputs and buttons override to ensure precision feel */
+input, button, select, textarea {
+  @apply transition-all duration-200 outline-none;
+}
+
+button:active {
+  transform: scale(0.97);
+}

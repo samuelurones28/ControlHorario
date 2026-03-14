@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER:-control_user}:${DB_PASSWORD:-control_pass}@db:5432/${DB_NAME:-control_horario}?schema=public
+    depends_on:
+      - db
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/prisma:/app/prisma
+
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=${DB_USER:-control_user}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-control_pass}
+      - POSTGRES_DB=${DB_NAME:-control_horario}
+    # NOTE: Do NOT expose port 5432 in production. Remove the ports section for production.
+    # For development only, if needed:
+    # ports:
+    #   - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      # Uncomment for HTTPS in production:
+      # - "443:443"
+    # Uncomment in production for SSL certificates:
+    # volumes:
+    #   - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      - api
+      - frontend
+
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      - POSTGRES_USER=${DB_USER:-control_user}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-control_pass}
+      - POSTGRES_DB=${DB_NAME:-control_horario}
+      - POSTGRES_HOST=db
+    volumes:
+      - backup_data:/backups
+      - ./scripts/backup.sh:/backup.sh:ro
+    depends_on:
+      - db
+    entrypoint: /bin/sh
+    command: |
+      -c '
+      chmod +x /backup.sh
+      echo "0 2 * * * /backup.sh" > /etc/crontabs/root
+      crond -f -l 2
+      '
+
+volumes:
+  postgres_data:
+  backup_data:
